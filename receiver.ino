@@ -1,28 +1,51 @@
 #include <WiFi.h>
 #include <esp_now.h>
+#include <string.h>
 
-#define ESP_POWER_PIN 4   / power control
+
+#define ESP_POWER_PIN 4   // power control
+
+typedef enum {
+  OFF = 0,
+  MANUAL,
+  CALIBERATING,
+  STABLIZE,
+  RTH
+} FlightMode;
 
 typedef struct {
-  uint32_t counter;
-} TestPacket;
+  FlightMode mode;
+  float targetThrottle;
+  float targetYawAngle;
+  float targetRollAngle;
+  float targetPitchAngle;
+  uint32_t timestamp;
+} ControlValue;
 
-TestPacket rxData;
+volatile ControlValue rxCmd;
+
 
 void onReceive(const esp_now_recv_info_t *info,
                const uint8_t *incomingData,
                int len) {
 
-  memcpy(&rxData, incomingData, sizeof(rxData));
-
-  Serial.print("Packet received from: ");
-  for (int i = 0; i < 6; i++) {
-    Serial.printf("%02X", info->src_addr[i]);
-    if (i < 5) Serial.print(":");
+  if (len != sizeof(ControlValue)) {
+    Serial.println("Invalid packet size");
+    return;
   }
-  Serial.print(" | Counter = ");
-  Serial.println(rxData.counter);
+
+  memcpy((void*)&rxCmd, incomingData, sizeof(ControlValue));
+
+  Serial.print("T:");
+  Serial.print(rxCmd.targetThrottle, 2);
+  Serial.print(" R:");
+  Serial.print(rxCmd.targetRollAngle, 1);
+  Serial.print(" P:");
+  Serial.print(rxCmd.targetPitchAngle, 1);
+  Serial.print(" Y:");
+  Serial.println(rxCmd.targetYawAngle, 1);
 }
+
 
 void setup() {
   Serial.begin(115200);
